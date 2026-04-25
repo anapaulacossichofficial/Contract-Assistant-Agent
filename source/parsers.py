@@ -1,72 +1,55 @@
-from io import BytesIO
-from pathlib import Path
-from datetime import datetime
 import re
+from datetime import datetime
 from docx import Document
 from pypdf import PdfReader
 
-def extract_text_from_docx(uploaded_file) -> str:
-    uploaded_file.seek(0)
-    doc = Document(BytesIO(uploaded_file.read()))
-    parts = [p.text for p in doc.paragraphs if p.text.strip()]
 
-    for table in doc.tables:
-        for row in table.rows:
-            for cell in row.cells:
-                text = cell.text.strip()
-                if text:
-                    parts.append(text)
+def extract_text(uploaded_file):
+    if uploaded_file.name.endswith(".docx"):
+        doc = Document(uploaded_file)
+        return "\n".join([p.text for p in doc.paragraphs])
 
-    return "\n".join(parts)
+    elif uploaded_file.name.endswith(".pdf"):
+        reader = PdfReader(uploaded_file)
+        text = ""
+        for page in reader.pages:
+            extracted = page.extract_text()
+            if extracted:
+                text += extracted + "\n"
+        return text
 
-def extract_text_from_pdf(uploaded_file) -> str:
-    uploaded_file.seek(0)
-    reader = PdfReader(BytesIO(uploaded_file.read()))
-    parts = []
+    return ""
 
-    for page in reader.pages:
-        text = page.extract_text() or ""
-        if text.strip():
-            parts.append(text)
-
-    return "\n".join(parts)
-
-def extract_text(uploaded_file) -> str:
-    suffix = Path(uploaded_file.name.lower()).suffix
-
-    if suffix == ".docx":
-        return extract_text_from_docx(uploaded_file)
-    if suffix == ".pdf":
-        return extract_text_from_pdf(uploaded_file)
-
-    raise ValueError("Formato não suportado. Use .pdf ou .docx")
 
 def normalize_text(text: str) -> str:
-    return re.sub(r"\s+", " ", text.lower()).strip()
+    return re.sub(r"\s+", " ", text).strip().lower()
+
 
 def parse_money(text: str) -> float:
-    patterns = [
-        r"valor estimado\s*r\$\s*([\d\.]+,\d{2})",
-        r"r\$\s*([\d\.]+,\d{2})",
-    ]
-
-    for pattern in patterns:
-        match = re.search(pattern, text, re.I)
-        if match:
-            return float(match.group(1).replace(".", "").replace(",", "."))
-
+    match = re.search(r"r\$\s*([\d\.\,]+)", text, re.IGNORECASE)
+    if match:
+        value = match.group(1).replace(".", "").replace(",", ".")
+        try:
+            return float(value)
+        except ValueError:
+            return 0.0
     return 0.0
 
-def parse_dates(text: str):
-    match = re.search(
-        r"inicio\s+em\s+(\d{2}/\d{2}/\d{4}).*?termino\s+em\s+(\d{2}/\d{2}/\d{4})",
-        text,
-        re.I,
-    )
 
-    if not match:
+def parse_dates(text: str):
+    date_matches = re.findall(r"\b\d{2}/\d{2}/\d{4}\b", text)
+
+    parsed_dates = []
+    for d in date_matches:
+        try:
+            parsed_dates.append(datetime.strptime(d, "%d/%m/%Y"))
+        except ValueError:
+            pass
+
+    if not parsed_dates:
         return None, None
 
-    start_date = datetime.strptime(match.group(1), "%d/%m/%Y")
-    end_date = datetime.strptime(match.group(2), "%d/%m/%Y")
+    start_date = min(parsed_dates)
+    end_date = max(parsed_dates)
+
     return start_date, end_date

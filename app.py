@@ -1,9 +1,13 @@
 import streamlit as st
+from source.parsers import extract_text
+from source.processor import analyze_contract
 
-from source.processor import analyze_file
 
-
-st.set_page_config(page_title="Contract Assistant Agent", page_icon="📄", layout="centered")
+st.set_page_config(
+    page_title="Contract Assistant Agent",
+    page_icon="📄",
+    layout="wide"
+)
 
 st.title("Contract Assistant Agent")
 st.caption("Upload PDF or DOCX contracts for analysis.")
@@ -14,30 +18,66 @@ if uploaded_file is not None:
     st.success(f"Loaded: {uploaded_file.name}")
 
     if st.button("Analyze Contract"):
-        with st.spinner("Analyzing contract..."):
-            try:
-                result = analyze_file(uploaded_file)
+        try:
+            contract_text = extract_text(uploaded_file)
+            result = analyze_contract(contract_text)
 
-                if not result:
-                    st.error("The analysis did not return any result.")
-                    st.stop()
+            days_until_expiration = result.get("days_until_expiration")
+            expiration_status = result.get("expiration_status") or "Unknown"
+            test_risk_label = result.get("test_risk_label")
 
-                st.subheader("Analysis Result")
+            days_display = (
+                str(days_until_expiration)
+                if days_until_expiration is not None
+                else "Not identified"
+            )
 
-                st.metric("Risk Score", result.risk_score)
-                st.write(f"**Priority:** {result.priority}")
-                st.write(f"**Recommendation:** {result.recommendation}")
-                st.write(f"**Value:** R$ {result.value:,.2f}")
-                st.write(f"**Period:** {result.start_date} to {result.end_date}")
-                st.write(f"**Days to Expiry:** {result.days_to_expiry}")
-                
-                if result.rationale:
-                    st.write("**Rationale:**")
-                    for item in result.rationale:
-                        st.write(f"- {item}")
-                
-                with st.expander("Contract Preview"):
-                    st.text(result.text_preview)
+            st.subheader("Analysis Result")
 
-            except Exception as e:
-                st.error(f"Analysis failed: {e}")
+            col1, col2, col3, col4 = st.columns(4)
+
+            with col1:
+                st.metric("Risk Score", result.get("risk_score", 0))
+
+            with col2:
+                st.metric("Priority", result.get("priority", "Unknown"))
+
+            with col3:
+                st.metric("Expiration Status", expiration_status)
+
+            with col4:
+                st.metric("Days Until Expiration", days_display)
+
+            st.divider()
+
+            left_col, right_col = st.columns([1.3, 1])
+
+            with left_col:
+                st.markdown("### Contract Overview")
+                st.write(f"**Recommendation:** {result.get('recommendation', 'N/A')}")
+                st.write(f"**Summary:** {result.get('summary', 'N/A')}")
+
+                if test_risk_label:
+                    st.info(f"Double-check from OBSERVACOES PARA TESTE: {test_risk_label}")
+
+            with right_col:
+                st.markdown("### Key Details")
+                st.write(f"**Contract Value:** R$ {result.get('contract_value', 0.0):.2f}")
+                st.write(f"**Start Date:** {result.get('start_date') or 'Not identified'}")
+                st.write(f"**End Date:** {result.get('end_date') or 'Not identified'}")
+
+            st.divider()
+
+            if expiration_status == "Critical":
+                st.warning("This contract is very close to expiration.")
+            elif expiration_status in ["Expiring Soon", "High Attention", "Monitor"]:
+                st.warning("This contract requires monitoring based on the expiration timeline.")
+            elif expiration_status == "Expired":
+                st.error("This contract has already expired.")
+            elif days_until_expiration is None:
+                st.info("The contract priority was identified, but the expiration date could not be extracted.")
+            else:
+                st.info("This contract is not close to expiration.")
+
+        except Exception as e:
+            st.error(f"Analysis failed: {e}")

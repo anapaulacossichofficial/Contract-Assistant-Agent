@@ -1,19 +1,20 @@
 # Contract Assistant Agent
 
-Aplicação demo em Streamlit para análise de contratos em `.pdf` e `.docx`.
+Streamlit app for contract analysis based on:
+- contract value
+- extracted dates
+- days until expiration
+- risk prioritization
 
-## Estrutura
-
-- `app.py`: interface Streamlit
-- `src/parsers.py`: leitura e parsing de contratos
-- `src/scoring.py`: lógica de score e recomendação
-- `src/processor.py`: orquestração do fluxo
-- `src/schemas.py`: estrutura dos resultados
-- `samples/`: contratos de exemplo
-
-## Como executar
+## Run locally
 
 ```bash
 pip install -r requirements.txt
 streamlit run app.py
 ```
+
+## Project structure
+
+- `app.py` — Streamlit interface
+- `source/parsers.py` — text extraction and parsing
+- `source/processor.py` — contract analysis logic
