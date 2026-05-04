@@ -25,3 +25,5 @@ build/
 
 .env
 .env.*
+# gstack (global install)
+.amazonq/rules/gstack.md
