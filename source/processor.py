@@ -14,6 +14,7 @@ def analyze_contract(contract_text: str) -> dict:
             "end_date": None,
             "days_until_expiration": None,
             "expiration_status": "Unknown",
+            "test_risk_label": None,
         }
 
     normalized = normalize_text(contract_text)
@@ -118,4 +119,5 @@ def analyze_contract(contract_text: str) -> dict:
         "end_date": end_date.strftime("%d/%m/%Y") if end_date else None,
         "days_until_expiration": days_until_expiration,
         "expiration_status": expiration_status,
+        "test_risk_label": None,
     }

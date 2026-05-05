@@ -1,12 +1,3 @@
-from datetime import datetime
-
-TODAY = datetime(2026, 4, 24)
-
-def calculate_days_to_expiry(end_date):
-    if end_date is None:
-        return 9999
-    return (end_date - TODAY).days
-
 def score_contract(value: float, days_to_expiry: int):
     score = 0
     rationale = []
